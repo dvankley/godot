@@ -45,6 +45,10 @@
 namespace GodotSharpDirs {
 
 String _get_expected_build_config() {
+	const char* env_var_override = std::getenv("GODOT_MONO_BUILD_CONFIGURATION");
+	if (env_var_override != nullptr) {
+		return env_var_override;
+	}
 #ifdef TOOLS_ENABLED
 	return "Debug";
 #else
