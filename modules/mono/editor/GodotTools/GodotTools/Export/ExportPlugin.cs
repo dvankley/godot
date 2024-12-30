@@ -153,9 +153,10 @@ namespace GodotTools.Export
                 throw new NotImplementedException("Target platform not yet implemented.");
             }
 
+            var BuildConfigOverride = System.Environment.GetEnvironmentVariable("GODOT_MONO_EXPORT_CONFIGURATION");
             PublishConfig publishConfig = new()
             {
-                BuildConfig = isDebug ? "ExportDebug" : "ExportRelease",
+                BuildConfig = BuildConfigOverride ?? (isDebug ? "ExportDebug" : "ExportRelease"),
                 IncludeDebugSymbols = (bool)GetOption("dotnet/include_debug_symbols"),
                 RidOS = DetermineRuntimeIdentifierOS(platform),
                 Archs = new List<string>(),
