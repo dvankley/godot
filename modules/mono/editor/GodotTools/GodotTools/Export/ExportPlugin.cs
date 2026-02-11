@@ -37,8 +37,28 @@ namespace GodotTools.Export
 
         public override Godot.Collections.Array<Godot.Collections.Dictionary> _GetExportOptions(EditorExportPlatform platform)
         {
-            return new Godot.Collections.Array<Godot.Collections.Dictionary>()
+            var exportOptionList = new Godot.Collections.Array<Godot.Collections.Dictionary>();
+
+            if (platform.GetOsName().Equals(OS.Platforms.Android, StringComparison.OrdinalIgnoreCase))
             {
+                exportOptionList.Add
+                (
+                    new Godot.Collections.Dictionary()
+                    {
+                        {
+                            "option", new Godot.Collections.Dictionary()
+                            {
+                                { "name", "dotnet/android_use_linux_bionic" },
+                                { "type", (int)Variant.Type.Bool }
+                            }
+                        },
+                        { "default_value", false }
+                    }
+                );
+            }
+
+            exportOptionList.Add
+            (
                 new Godot.Collections.Dictionary()
                 {
                     {
@@ -49,7 +69,10 @@ namespace GodotTools.Export
                         }
                     },
                     { "default_value", false }
-                },
+                }
+            );
+            exportOptionList.Add
+            (
                 new Godot.Collections.Dictionary()
                 {
                     {
@@ -60,7 +83,10 @@ namespace GodotTools.Export
                         }
                     },
                     { "default_value", true }
-                },
+                }
+            );
+            exportOptionList.Add
+            (
                 new Godot.Collections.Dictionary()
                 {
                     {
@@ -72,7 +98,8 @@ namespace GodotTools.Export
                     },
                     { "default_value", false }
                 }
-            };
+            );
+            return exportOptionList;
         }
 
         private void AddExceptionMessage(EditorExportPlatform platform, Exception exception)
@@ -158,13 +185,14 @@ namespace GodotTools.Export
                 throw new NotImplementedException("Target platform not yet implemented.");
             }
 
-            var BuildConfigOverride = System.Environment.GetEnvironmentVariable("GODOT_MONO_EXPORT_CONFIGURATION");
+            bool useAndroidLinuxBionic = (bool)GetOption("dotnet/android_use_linux_bionic");
+			var BuildConfigOverride = System.Environment.GetEnvironmentVariable("GODOT_MONO_EXPORT_CONFIGURATION");
             PublishConfig publishConfig = new()
             {
                 BuildConfig = BuildConfigOverride ?? (isDebug ? "ExportDebug" : "ExportRelease"),
                 IncludeDebugSymbols = (bool)GetOption("dotnet/include_debug_symbols"),
-                RidOS = DetermineRuntimeIdentifierOS(platform),
-                Archs = new List<string>(),
+                RidOS = DetermineRuntimeIdentifierOS(platform, useAndroidLinuxBionic),
+                Archs = [],
                 UseTempDir = platform != OS.Platforms.iOS, // xcode project links directly to files in the publish dir, so use one that sticks around.
                 BundleOutputs = true,
             };
@@ -205,7 +233,7 @@ namespace GodotTools.Export
                 targets.Add(new PublishConfig
                 {
                     BuildConfig = publishConfig.BuildConfig,
-                    Archs = new List<string> { "arm64", "x86_64" },
+                    Archs = ["arm64", "x86_64"],
                     BundleOutputs = false,
                     IncludeDebugSymbols = publishConfig.IncludeDebugSymbols,
                     RidOS = OS.DotNetOS.iOSSimulator,
@@ -259,7 +287,7 @@ namespace GodotTools.Export
                     if (!BuildManager.PublishProjectBlocking(buildConfig, platform,
                             runtimeIdentifier, publishOutputDir, includeDebugSymbols))
                     {
-                        throw new InvalidOperationException("Failed to build project.");
+                        throw new InvalidOperationException("Failed to build project. Check MSBuild panel for details.");
                     }
 
                     string soExt = ridOS switch
@@ -330,6 +358,14 @@ namespace GodotTools.Export
 
                                         if (IsSharedObject(fileName))
                                         {
+                                            if (fileName.EndsWith(".so") && !fileName.StartsWith("lib"))
+                                            {
+                                                // Add 'lib' prefix required for all native libraries in Android.
+                                                string newPath = string.Concat(path.AsSpan(0, path.Length - fileName.Length), "lib", fileName);
+                                                Godot.DirAccess.RenameAbsolute(path, newPath);
+                                                path = newPath;
+                                            }
+
                                             AddSharedObject(path, tags: new string[] { arch },
                                                 Path.Join(projectDataDirName,
                                                     Path.GetRelativePath(publishOutputDir,
@@ -371,7 +407,7 @@ namespace GodotTools.Export
                                 {
                                     if (platform == OS.Platforms.iOS && path.EndsWith(".dat", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        AddIosBundleFile(path);
+                                        AddAppleEmbeddedPlatformBundleFile(path);
                                     }
                                     else
                                     {
@@ -418,7 +454,7 @@ namespace GodotTools.Export
                     throw new InvalidOperationException("Failed to generate xcframework.");
                 }
 
-                AddIosEmbeddedFramework(xcFrameworkPath);
+                AddAppleEmbeddedPlatformEmbeddedFramework(xcFrameworkPath);
             }
         }
 
@@ -454,8 +490,14 @@ namespace GodotTools.Export
             return path;
         }
 
-        private string DetermineRuntimeIdentifierOS(string platform)
-            => OS.DotNetOSPlatformMap[platform];
+        private string DetermineRuntimeIdentifierOS(string platform, bool useAndroidLinuxBionic)
+        {
+            if (platform == OS.Platforms.Android && useAndroidLinuxBionic)
+            {
+                return OS.DotNetOS.LinuxBionic;
+            }
+            return OS.DotNetOSPlatformMap[platform];
+        }
 
         private string DetermineRuntimeIdentifierArch(string arch)
         {
@@ -514,7 +556,7 @@ namespace GodotTools.Export
             public bool UseTempDir;
             public bool BundleOutputs;
             public string RidOS;
-            public List<string> Archs;
+            public HashSet<string> Archs;
             public string BuildConfig;
             public bool IncludeDebugSymbols;
         }
