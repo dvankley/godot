@@ -186,9 +186,10 @@ namespace GodotTools.Export
             }
 
             bool useAndroidLinuxBionic = (bool)GetOption("dotnet/android_use_linux_bionic");
+            var BuildConfigOverride = System.Environment.GetEnvironmentVariable("GODOT_MONO_EXPORT_CONFIGURATION");
             PublishConfig publishConfig = new()
             {
-                BuildConfig = isDebug ? "ExportDebug" : "ExportRelease",
+                BuildConfig = BuildConfigOverride ?? (isDebug ? "ExportDebug" : "ExportRelease"),
                 IncludeDebugSymbols = (bool)GetOption("dotnet/include_debug_symbols"),
                 RidOS = DetermineRuntimeIdentifierOS(platform, useAndroidLinuxBionic),
                 Archs = [],
