@@ -96,6 +96,10 @@ public:
 		"--test",
 	};
 
+	// Picks the appropriate OS_MacOS subclass based on the command-line args.
+	// Returns nullptr if `--embedded` is requested in a non-tools build.
+	static OS_MacOS *create_for_cmdline(const char *p_execpath, int p_argc, char **p_argv);
+
 	virtual void add_frame_delay(bool p_can_draw, bool p_wake_for_events) override;
 
 	virtual void set_cmdline_platform_args(const List<String> &p_args);
