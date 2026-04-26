@@ -59,7 +59,6 @@ int main(int argc, char **argv) {
 
 	int wait_for_debugger = 0; // wait 5 second by default
 	bool is_embedded = false;
-	bool is_headless = false;
 
 	for (int i = 0; i < argc; i++) {
 		if (strcmp("-NSDocumentRevisionsDebugMode", argv[i]) == 0) {
@@ -79,16 +78,6 @@ int main(int argc, char **argv) {
 		if (strcmp("--embedded", argv[i]) == 0) {
 			is_embedded = true;
 		}
-		for (size_t j = 0; j < std::size(OS_MacOS::headless_args); j++) {
-			if (strcmp(OS_MacOS::headless_args[j], argv[i]) == 0) {
-				is_headless = true;
-				break;
-			}
-		}
-
-		if (i < argc - 1 && strcmp("--display-driver", argv[i]) == 0 && strcmp("headless", argv[i + 1]) == 0) {
-			is_headless = true;
-		}
 
 		args.ptr()[argsc] = argv[i];
 		argsc++;
@@ -96,18 +85,9 @@ int main(int argc, char **argv) {
 
 	uint32_t remaining_args = argsc - 1;
 
-	OS_MacOS *os = nullptr;
-	if (is_embedded) {
-#ifdef TOOLS_ENABLED
-		os = memnew(OS_MacOS_Embedded(args[0], remaining_args, remaining_args > 0 ? &args[1] : nullptr));
-#else
-		WARN_PRINT("Embedded mode is not supported in release builds.");
+	OS_MacOS *os = OS_MacOS::create_for_cmdline(args[0], remaining_args, remaining_args > 0 ? &args[1] : nullptr);
+	if (!os) {
 		return EXIT_FAILURE;
-#endif
-	} else if (is_headless) {
-		os = memnew(OS_MacOS_Headless(args[0], remaining_args, remaining_args > 0 ? &args[1] : nullptr));
-	} else {
-		os = memnew(OS_MacOS_NSApp(args[0], remaining_args, remaining_args > 0 ? &args[1] : nullptr));
 	}
 
 #ifdef TOOLS_ENABLED

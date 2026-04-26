@@ -1087,6 +1087,39 @@ OS_MacOS::OS_MacOS(const char *p_execpath, int p_argc, char **p_argv) {
 	DisplayServerMacOS::register_macos_driver();
 }
 
+OS_MacOS *OS_MacOS::create_for_cmdline(const char *p_execpath, int p_argc, char **p_argv) {
+	bool is_embedded = false;
+	bool is_headless = false;
+
+	for (int i = 0; i < p_argc; i++) {
+		if (strcmp("--embedded", p_argv[i]) == 0) {
+			is_embedded = true;
+		}
+		for (size_t j = 0; j < std::size(headless_args); j++) {
+			if (strcmp(headless_args[j], p_argv[i]) == 0) {
+				is_headless = true;
+				break;
+			}
+		}
+		if (i < p_argc - 1 && strcmp("--display-driver", p_argv[i]) == 0 && strcmp("headless", p_argv[i + 1]) == 0) {
+			is_headless = true;
+		}
+	}
+
+	if (is_embedded) {
+#ifdef TOOLS_ENABLED
+		return memnew(OS_MacOS_Embedded(p_execpath, p_argc, p_argv));
+#else
+		WARN_PRINT("Embedded mode is not supported in release builds.");
+		return nullptr;
+#endif
+	}
+	if (is_headless) {
+		return memnew(OS_MacOS_Headless(p_execpath, p_argc, p_argv));
+	}
+	return memnew(OS_MacOS_NSApp(p_execpath, p_argc, p_argv));
+}
+
 // MARK: - OS_MacOS_NSApp
 
 void OS_MacOS_NSApp::run() {

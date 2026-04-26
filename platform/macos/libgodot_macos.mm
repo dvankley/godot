@@ -43,7 +43,10 @@ GDExtensionObjectPtr libgodot_create_godot_instance(int p_argc, char *p_argv[], 
 	ERR_FAIL_COND_V_MSG(instance != nullptr, nullptr, "Only one Godot Instance may be created.");
 
 	uint32_t remaining_args = p_argc - 1;
-	os = new OS_MacOS_NSApp(p_argv[0], remaining_args, remaining_args > 0 ? &p_argv[1] : nullptr);
+	os = OS_MacOS::create_for_cmdline(p_argv[0], remaining_args, remaining_args > 0 ? &p_argv[1] : nullptr);
+	if (!os) {
+		return nullptr;
+	}
 
 	@autoreleasepool {
 		Error err = Main::setup(p_argv[0], remaining_args, remaining_args > 0 ? &p_argv[1] : nullptr, false);
