@@ -35,6 +35,7 @@
 
 #include "core/config/project_settings.h"
 #include "core/io/dir_access.h"
+#include "core/io/file_access.h"
 #include "core/os/os.h"
 
 #ifdef TOOLS_ENABLED
@@ -169,6 +170,38 @@ private:
 #endif
 		api_assemblies_dir = api_assemblies_base_dir.path_join(GDMono::get_expected_api_build_config());
 #else // TOOLS_ENABLED
+#ifdef LIBGODOT_ENABLED
+		// libgodot escape hatch: let an embedding host point us at the
+		// directory containing GodotPlugins.dll via the `GODOTSHARP_DIR`
+		// environment variable.
+		//
+		// The default (non-tools, non-libgodot) lookup below assumes an
+		// exported game layout — `res://.godot/mono/publish/<arch>/` packed
+		// into the PCK by Godot's export pipeline. That doesn't exist when
+		// libgodot is loaded into an arbitrary .NET host (e.g. `dotnet test`
+		// or a third-party app embedding the engine), because there's no
+		// export step to lay those files down.
+		//
+		// `GodotPlugins.dll` is the file we actually need to find — it's the
+		// runtime entrypoint that registers managed callbacks back into
+		// GDMono. Whatever directory contains it is also where `Leviathan.dll`
+		// (or whatever the project assembly is called), `libhostfxr.dylib`,
+		// and `libcoreclr.dylib` should live, since `find_hostfxr()` /
+		// `find_coreclr()` in `gd_mono.cpp` probe this exact directory in
+		// non-tools builds.
+		//
+		// Hosts are expected to set `GODOTSHARP_DIR` *before* calling into
+		// libgodot; once `Main::start()` reaches scene loading it's too late.
+		// Note: Environment.SetEnvironmentVariable on Linux/macOS .NET 8+
+		// doesn't propagate to native getenv() — hosts must P/Invoke
+		// libc::setenv() directly.
+		String env_godotsharp_dir = OS::get_singleton()->get_environment("GODOTSHARP_DIR");
+		if (!env_godotsharp_dir.is_empty() && FileAccess::exists(env_godotsharp_dir.path_join("GodotPlugins.dll"))) {
+			api_assemblies_dir = env_godotsharp_dir.simplify_path();
+			return;
+		}
+#endif
+
 		String platform = _get_platform_name();
 		String arch = Engine::get_singleton()->get_architecture_name();
 		String appname_safe = Path::get_csharp_project_name();
