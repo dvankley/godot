@@ -2609,6 +2609,34 @@ Error CSharpScript::reload(bool p_keep_state) {
 
 	String script_path = get_path();
 
+	// Defensive guard to bail out cleanly instead of dereferencing a null
+	// managed_callbacks function pointer.
+	//
+	// `GDMonoCache::managed_callbacks` is populated as a side-effect of
+	// `godot_plugins_initialize` running successfully — that's the C function
+	// pointer obtained via hostfxr that, on the managed side, calls
+	// `ManagedCallbacks.Create()` to wire up every script-runtime trampoline
+	// that the engine subsequently invokes (script bridge, lookup, etc.).
+	//
+	// In libgodot embedded mode the host process's CoreCLR may already be
+	// running before `engine.Start()` is called. If `GDMono::initialize()`
+	// fails (or chooses not to run via `should_initialize()`), GodotPlugins
+	// never gets loaded, those callbacks stay zero-initialized, and the next
+	// script load — which always happens during scene resource loading —
+	// segfaults inside `ScriptManagerBridge_AddScriptBridge` below.
+	//
+	// We check three things in order of precedence:
+	//   1. `GDMono::get_singleton()` — the module exists at all.
+	//   2. `is_runtime_initialized()` — hostfxr/coreclr brought up successfully.
+	//   3. `godot_api_cache_updated` — the managed side actually populated
+	//      the callback table (set by `_on_core_api_assembly_loaded`).
+	// All three must be true before it's safe to invoke a callback pointer.
+	if (!GDMono::get_singleton() || !GDMono::get_singleton()->is_runtime_initialized() || !GDMonoCache::godot_api_cache_updated) {
+		ERR_PRINT(vformat("C# runtime not initialized; cannot load script '%s'.", script_path));
+		valid = false;
+		return ERR_UNAVAILABLE;
+	}
+
 	valid = GDMonoCache::managed_callbacks.ScriptManagerBridge_AddScriptBridge(this, &script_path);
 
 	if (valid) {
