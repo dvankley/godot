@@ -612,6 +612,13 @@ bool GDMono::should_initialize() {
 	// The editor always needs to initialize the .NET module for now.
 	return true;
 #else
+#ifdef LIBGODOT_ENABLED
+	String godotsharp_dir = OS::get_singleton()->get_environment("GODOTSHARP_DIR");
+	if (!godotsharp_dir.is_empty() && FileAccess::exists(godotsharp_dir.path_join("GodotPlugins.dll"))) {
+		return true;
+	}
+#endif
+
 	return OS::get_singleton()->has_feature("dotnet");
 #endif
 }
