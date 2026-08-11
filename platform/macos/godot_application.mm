@@ -36,6 +36,11 @@
 
 GodotApplication *GodotApp = nil;
 
+bool macos_app_activation_disabled() {
+	const char *disable = getenv("GODOT_DISABLE_APP_ACTIVATION");
+	return disable != nullptr && disable[0] != '\0' && strcmp(disable, "0") != 0;
+}
+
 @interface GodotApplication ()
 - (void)forceUnbundledWindowActivationHackStep1;
 - (void)forceUnbundledWindowActivationHackStep2;
@@ -57,6 +62,10 @@ GodotApplication *GodotApp = nil;
 }
 
 - (void)activateApplication {
+	if (macos_app_activation_disabled()) {
+		// Leave the window unfocused and behind whatever the user is working in.
+		return;
+	}
 	[NSApp activateIgnoringOtherApps:YES];
 	NSString *nsappname = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
 	const char *bundled_id = getenv("__CFBundleIdentifier");

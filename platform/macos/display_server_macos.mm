@@ -1803,6 +1803,9 @@ void DisplayServerMacOS::show_window(WindowID p_id) {
 		} else {
 			[wd.window_object orderFront:nil];
 		}
+	} else if (macos_app_activation_disabled()) {
+		// Order in without taking key status, which would pull the app forward.
+		[wd.window_object orderFront:nil];
 	} else {
 		[wd.window_object makeKeyAndOrderFront:nil];
 	}
@@ -2606,6 +2609,8 @@ void DisplayServerMacOS::window_set_flag(WindowFlags p_flag, bool p_enabled, Win
 					} else {
 						[wd.window_object orderFront:nil];
 					}
+				} else if (macos_app_activation_disabled()) {
+					[wd.window_object orderFront:nil];
 				} else {
 					[wd.window_object makeKeyAndOrderFront:nil];
 				}
@@ -2726,7 +2731,9 @@ void DisplayServerMacOS::window_move_to_foreground(WindowID p_window) {
 	ERR_FAIL_COND(!windows.has(p_window));
 	const WindowData &wd = windows[p_window];
 
-	[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
+	if (!macos_app_activation_disabled()) {
+		[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
+	}
 	if (wd.no_focus || wd.is_popup) {
 		if (wd.transient_parent != INVALID_WINDOW_ID) {
 			WindowData &wd_parent = windows[wd.transient_parent];
@@ -2736,6 +2743,8 @@ void DisplayServerMacOS::window_move_to_foreground(WindowID p_window) {
 		} else {
 			[wd.window_object orderFront:nil];
 		}
+	} else if (macos_app_activation_disabled()) {
+		[wd.window_object orderFront:nil];
 	} else {
 		[wd.window_object makeKeyAndOrderFront:nil];
 	}

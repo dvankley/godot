@@ -38,6 +38,11 @@
 
 @class GodotApplicationDelegate;
 
+// True when GODOT_DISABLE_APP_ACTIVATION is set to a non-empty, non-"0" value.
+// Set by headless-adjacent automation harnesses that launch a rendering client
+// in the background: the app then neither takes focus nor claims a Dock slot.
+bool macos_app_activation_disabled();
+
 @interface GodotApplication : NSApplication
 
 extern "C" GodotApplication *GodotApp;

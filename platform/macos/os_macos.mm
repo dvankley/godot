@@ -1227,8 +1227,9 @@ OS_MacOS_NSApp::OS_MacOS_NSApp(const char *p_execpath, int p_argc, char **p_argv
 	// Implicitly create shared NSApplication instance.
 	[GodotApplication sharedApplication];
 
-	// In case we are unbundled, make us a proper UI application.
-	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+	// In case we are unbundled, make us a proper UI application. Automation runs
+	// stay an accessory so they keep a rendering window without a Dock slot.
+	[NSApp setActivationPolicy:(macos_app_activation_disabled() ? NSApplicationActivationPolicyAccessory : NSApplicationActivationPolicyRegular)];
 
 	// Menu bar setup must go between sharedApplication above and
 	// finishLaunching below, in order to properly emulate the behavior
